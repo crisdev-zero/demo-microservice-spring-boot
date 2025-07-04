@@ -1,4 +1,4 @@
-package com.example.postmicroservice;
+package com.example.demomicroservice;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

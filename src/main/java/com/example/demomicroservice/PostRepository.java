@@ -1,4 +1,4 @@
-package com.example.postmicroservice;
+package com.example.demomicroservice;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

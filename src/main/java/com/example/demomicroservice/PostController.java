@@ -1,4 +1,4 @@
-package com.example.postmicroservice;
+package com.example.demomicroservice;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
