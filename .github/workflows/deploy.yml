@@ -1,0 +1,89 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
+
+env:
+  # These can be here as they are not sensitive or directly come from another secret
+  PROJECT_ID: my-springboot-poc # IMPORTANT: Replace with your Google Cloud Project ID (e.g., my-springboot-poc-project-12345)
+  SERVICE_NAME: demo-microservice   # Cloud Run service name (can be anything, but match your app)
+  REGION: us-central1               # Cloud Run deployment region (e.g., us-central1, europe-west1)
+  ARTIFACT_REGISTRY_REPO: my-app-images # Name for your Artifact Registry repository (e.g., springboot-images)
+
+  # DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSL_MODE ARE NO LONGER HERE.
+  # They are securely stored as GitHub Secrets and accessed directly below.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build with Maven
+        run: mvn clean install -DskipTests
+
+      - name: Authenticate Google Cloud CLI
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }} # Uses the secret we stored
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker to use Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and Push Docker image to Artifact Registry
+        run: |
+          # Create Artifact Registry repo if it doesn't exist
+          gcloud artifacts repositories describe ${{ env.ARTIFACT_REGISTRY_REPO }} --location=${{ env.REGION }} --project=${{ env.PROJECT_ID }} || \
+          gcloud artifacts repositories create ${{ env.ARTIFACT_REGISTRY_REPO }} --repository-format=docker --location=${{ env.REGION }} --project=${{ env.PROJECT_ID }} --description="Docker repository for Spring Boot apps"
+
+          # Define image path
+          IMAGE_NAME=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+          # Build Docker image
+          docker build -t $IMAGE_NAME .
+
+          # Push Docker image
+          docker push $IMAGE_NAME
+        env:
+          MAVEN_OPTS: "-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true -Dmaven.wagon.http.ssl.ignore.validity-dates=true"
+
+
+      - name: Deploy to Google Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}" \
+            --set-env-vars "SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}" \
+            --set-env-vars "SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+            --set-env-vars "SPRING_JPA_HIBERNATE_DDL_AUTO=update" # Ensure DDL auto is set for initial deployment
+        env:
+          # MAVEN_OPTS is here to ensure the Maven build can sometimes bypass
+          # SSL issues if you were pulling from a problematic Maven repo.
+          # Not directly related to runtime DB connection.
+          MAVEN_OPTS: "-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true -Dmaven.wagon.http.ssl.ignore.validity-dates=true"
