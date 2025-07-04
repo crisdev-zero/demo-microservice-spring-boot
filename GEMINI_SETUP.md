@@ -23,7 +23,7 @@ Before we dive in, ensure you have the following accounts and tools ready:
   * **Git:** For version control. [https://git-scm.com/downloads](https://git-scm.com/downloads)
   * **Java Development Kit (JDK) 17 or higher:** Spring Boot 3.x requires JDK 17+. [https://adoptium.net/temurin/releases/](https://adoptium.net/temurin/releases/)
   * **Maven:** For building your Spring Boot project. [https://maven.apache.org/download.cgi](https://maven.apache.org/download.cgi)
-  * **Docker Desktop:** For building and testing Docker images locally. [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
+  * **Docker Desktop:** (**Not required, only to test docker locally, otherwise, skip**)  For building and testing Docker images locally. [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
 
 -----
 
@@ -56,6 +56,10 @@ Your Spring Boot application will connect to a MySQL database managed by Aiven.
           * Find the "Networking" or "Access Control" section.
           * Add a new IP allowlist entry: `0.0.0.0/0`.
       * **CRITICAL SECURITY NOTE:** Allowing `0.0.0.0/0` is **NOT recommended for production environments** as it allows anyone from the internet to attempt to connect. For production, you would typically use a Google Cloud VPC Access Connector for private networking or more advanced IP management if Aiven supports it with your chosen cloud. **Remember to remove this rule or restrict it after successful testing if not intended for long-term use.**
+
+4. **Test connection to Aiven**
+
+    * Can be tested with the connection string, from any viewer (ex: DBeaver) from local machine. If an error is got from the URL string, try appending this parameter to the default query provided by Aiven: `allowPublicKeyRetrieval=TRUE`
 
 -----
 
