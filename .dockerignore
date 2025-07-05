@@ -1,0 +1,10 @@
+.git
+.gitignore
+.mvn/
+mvnw
+mvnw.cmd
+target/
+.idea/
+*.iml
+**/.DS_Store
+**/node_modules/
